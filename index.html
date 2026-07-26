@@ -273,13 +273,12 @@ let data = null;
 const syncStatus = document.getElementById("syncStatus");
 
 dataRef.on("value", (snap)=>{
-  const remote = snap.val();
-  if(!remote){
-    data = DEFAULT_DATA;
-    dataRef.set(data);
-  } else {
-    data = remote;
-  }
+  const remote = snap.val() || {};
+  data = {
+    products: remote.products || [],
+    wishlist: remote.wishlist || [],
+    plants: remote.plants || DEFAULT_DATA.plants
+  };
   syncStatus.style.display = "none";
   renderProducts();
   renderWishlist();
