@@ -29,13 +29,29 @@ jobs:
           TODAY=$(TZ='Europe/Moscow' date +%Y-%m-%d)
           DAY=$(TZ='Europe/Moscow' date +%d)
 
+          PLANTS=$(echo "$DATA" | jq -c '.plants // []')
+
           if { [ "$DAY" = "01" ] || [ "$DAY" = "15" ]; } && [ "$LAST_FLIP" != "$TODAY" ]; then
-            PLANTS=$(echo "$DATA" | jq -c '.plants // []')
             NEW_PLANTS=$(echo "$PLANTS" | jq -c 'map(if .id=="succulent" then .status="red" else . end)')
             curl -s -X PUT -d "$NEW_PLANTS" "$DB/plants.json" > /dev/null
             send_msg "🌵 Суккулент пора полить! Статус сброшен на «Не полит»."
             LAST_FLIP="$TODAY"
+            PLANTS="$NEW_PLANTS"
           fi
+
+          PREV_PLANTS=$(echo "$META" | jq -c '.plantStatuses // {}')
+
+          echo "$PLANTS" | jq -c '.[]' | while read -r PL; do
+            ID=$(echo "$PL" | jq -r '.id')
+            LABEL=$(echo "$PL" | jq -r '.label')
+            STATUS=$(echo "$PL" | jq -r '.status')
+            OLD=$(echo "$PREV_PLANTS" | jq -r --arg id "$ID" '.[$id] // ""')
+            if [ -n "$OLD" ] && [ "$OLD" != "$STATUS" ] && [ "$STATUS" = "green" ]; then
+              send_msg "💧 «$LABEL» полит!"
+            fi
+          done
+
+          NEW_PLANT_STATUSES=$(echo "$PLANTS" | jq -c 'map({(.id): .status}) | add // {}')
 
           PRODUCTS=$(echo "$DATA" | jq -c '.products // []')
           PREV=$(echo "$META" | jq -c '.productStatuses // {}')
@@ -55,5 +71,5 @@ jobs:
           done
 
           NEW_PS=$(echo "$PRODUCTS" | jq -c 'map({(.id): .status}) | add // {}')
-          NEW_META=$(jq -n --arg lf "$LAST_FLIP" --argjson ps "$NEW_PS" '{lastFlipDate:$lf, productStatuses:$ps}')
+          NEW_META=$(jq -n --arg lf "$LAST_FLIP" --argjson ps "$NEW_PS" --argjson pls "$NEW_PLANT_STATUSES" '{lastFlipDate:$lf, productStatuses:$ps, plantStatuses:$pls}')
           curl -s -X PUT -d "$NEW_META" "$DB/_notifyMeta.json" > /dev/null
