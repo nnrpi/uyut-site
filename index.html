@@ -209,6 +209,7 @@
 <body>
 
 <h1 class="title">🌸 Уют 🌸</h1>
+<div id="syncStatus" style="text-align:center;color:var(--muted);font-size:0.85rem;margin-top:-20px;margin-bottom:20px;">загрузка...</div>
 
 <section>
   <h2>🛒 Продукты</h2>
@@ -242,30 +243,53 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
-const STORAGE_KEY = "uyut-data-v1";
-
 const EMOJIS = ["🍎","🍌","🥕","🥦","🥛","🧀","🍞","🥚","🍗","🍫","🧻","🧴","🧼","🪥","☕","🍅","🥔","🧅","🍋","🍇","🧃","🍯","🥫","🌶️"];
 
-let data = loadData();
+const firebaseConfig = {
+  apiKey: "AIzaSyB4vp9pY-YNcjVY_82qWcLJzdKSjfLR32k",
+  authDomain: "uyut-site.firebaseapp.com",
+  databaseURL: "https://uyut-site-default-rtdb.firebaseio.com",
+  projectId: "uyut-site",
+  storageBucket: "uyut-site.firebasestorage.app",
+  messagingSenderId: "296603515286",
+  appId: "1:296603515286:web:932871b7177130daef05b7"
+};
+firebase.initializeApp(firebaseConfig);
+const dataRef = firebase.database().ref("uyut");
 
-function loadData(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  return {
-    products: [],
-    wishlist: [],
-    plants: [
-      {id:"succulent", label:"Суккулент", photo:null, status:"red"},
-      {id:"dracaena", label:"Драцена", photo:null, status:"red"}
-    ]
-  };
-}
+const DEFAULT_DATA = {
+  products: [],
+  wishlist: [],
+  plants: [
+    {id:"succulent", label:"Суккулент", photo:null, status:"red"},
+    {id:"dracaena", label:"Драцена", photo:null, status:"red"}
+  ]
+};
+
+let data = null;
+const syncStatus = document.getElementById("syncStatus");
+
+dataRef.on("value", (snap)=>{
+  const remote = snap.val();
+  if(!remote){
+    data = DEFAULT_DATA;
+    dataRef.set(data);
+  } else {
+    data = remote;
+  }
+  syncStatus.style.display = "none";
+  renderProducts();
+  renderWishlist();
+  renderPlants();
+}, (err)=>{
+  syncStatus.textContent = "нет связи с базой :(";
+});
 
 function saveData(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  dataRef.set(data);
 }
 
 const STATUS_CYCLE = {
@@ -456,9 +480,6 @@ modalSave.onclick = ()=>{
   closeModal();
 };
 
-renderProducts();
-renderWishlist();
-renderPlants();
 </script>
 </body>
 </html>
