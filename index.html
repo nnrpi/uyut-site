@@ -292,7 +292,11 @@ dataRef.on("value", (snap)=>{
 });
 
 function saveData(){
-  dataRef.set(data);
+  dataRef.update({
+    products: data.products,
+    wishlist: data.wishlist,
+    plants: data.plants
+  });
 }
 
 const productsGrid = document.getElementById("productsGrid");
