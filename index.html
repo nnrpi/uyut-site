@@ -95,6 +95,10 @@
     font-size:0.72rem;
     font-weight:bold;
     cursor:pointer;
+    appearance:none;
+    -webkit-appearance:none;
+    text-align:center;
+    text-align-last:center;
   }
   .status.green{background:var(--green);color:var(--green-ink);}
   .status.yellow{background:var(--yellow);color:var(--yellow-ink);}
@@ -291,14 +295,6 @@ function saveData(){
   dataRef.set(data);
 }
 
-const STATUS_CYCLE = {
-  green: {next:"yellow", label:"Есть"},
-  yellow:{next:"red", label:"Кончается"},
-  red:   {next:"green", label:"ALARM!!!"}
-};
-
-function statusLabel(s){ return STATUS_CYCLE[s].label; }
-
 const productsGrid = document.getElementById("productsGrid");
 const wishGrid = document.getElementById("wishGrid");
 const plantsGrid = document.getElementById("plantsGrid");
@@ -312,14 +308,18 @@ function renderProducts(){
       <button class="remove" title="Удалить">✕</button>
       ${p.image ? `<img src="${p.image}">` : `<div class="emoji">${p.emoji||"📦"}</div>`}
       <div class="name">${escapeHtml(p.name)}</div>
-      <button class="status ${p.status}">${statusLabel(p.status)}</button>
+      <select class="status ${p.status}">
+        <option value="green" ${p.status==="green"?"selected":""}>Есть</option>
+        <option value="yellow" ${p.status==="yellow"?"selected":""}>Кончается</option>
+        <option value="red" ${p.status==="red"?"selected":""}>ALARM!!!</option>
+      </select>
     `;
     card.querySelector(".remove").onclick = ()=>{
       data.products = data.products.filter(x=>x.id!==p.id);
       saveData(); renderProducts();
     };
-    card.querySelector(".status").onclick = ()=>{
-      p.status = STATUS_CYCLE[p.status].next;
+    card.querySelector(".status").onchange = (e)=>{
+      p.status = e.target.value;
       saveData(); renderProducts();
     };
     productsGrid.appendChild(card);
