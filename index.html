@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Уют</title>
+<style>
+  :root{
+    --bg:#faf7f2;
+    --card:#ffffff;
+    --ink:#4a4038;
+    --muted:#a89a8a;
+    --accent:#e8b4bc;
+    --green:#a8d5ba;
+    --green-ink:#2f6b46;
+    --yellow:#f6e2a0;
+    --yellow-ink:#8a6d1a;
+    --red:#f3b3ae;
+    --red-ink:#a3352c;
+    --radius:18px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Trebuchet MS", "Segoe UI", sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    padding:24px 16px 80px;
+  }
+  h1.title{
+    text-align:center;
+    font-size:1.8rem;
+    margin:8px 0 32px;
+    letter-spacing:1px;
+  }
+  section{
+    max-width:720px;
+    margin:0 auto 40px;
+  }
+  section h2{
+    font-size:1.3rem;
+    margin-bottom:14px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+  .card{
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
+    padding:12px;
+    width:120px;
+    text-align:center;
+    position:relative;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+  }
+  .card .remove{
+    position:absolute;
+    top:4px;
+    right:6px;
+    border:none;
+    background:none;
+    color:var(--muted);
+    font-size:0.9rem;
+    cursor:pointer;
+    line-height:1;
+  }
+  .card .remove:hover{color:var(--red-ink);}
+  .card img{
+    width:64px;
+    height:64px;
+    object-fit:cover;
+    border-radius:12px;
+  }
+  .card .emoji{
+    font-size:2.4rem;
+    line-height:1;
+  }
+  .card .name{
+    font-size:0.85rem;
+    word-break:break-word;
+  }
+  .status{
+    border:none;
+    border-radius:10px;
+    padding:3px 10px;
+    font-size:0.72rem;
+    font-weight:bold;
+    cursor:pointer;
+  }
+  .status.green{background:var(--green);color:var(--green-ink);}
+  .status.yellow{background:var(--yellow);color:var(--yellow-ink);}
+  .status.red{background:var(--red);color:var(--red-ink);}
+
+  .wish-card{
+    width:auto;
+    min-width:100px;
+    padding:14px 18px;
+  }
+  .wish-card .name{font-size:0.95rem;}
+
+  .add-card{
+    border:2px dashed var(--muted);
+    background:transparent;
+    box-shadow:none;
+    color:var(--muted);
+    cursor:pointer;
+    justify-content:center;
+    min-height:110px;
+  }
+  .add-card .plus{font-size:1.8rem;}
+  .add-card:hover{color:var(--accent);border-color:var(--accent);}
+
+  .plants{
+    display:flex;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  .plant-card{
+    background:var(--card);
+    border-radius:var(--radius);
+    box-shadow:0 2px 10px rgba(0,0,0,0.06);
+    padding:16px;
+    width:160px;
+    text-align:center;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+  }
+  .plant-photo{
+    width:120px;
+    height:120px;
+    border-radius:14px;
+    object-fit:cover;
+    background:var(--bg);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:2.4rem;
+    color:var(--muted);
+    cursor:pointer;
+    overflow:hidden;
+  }
+  .plant-name{font-weight:bold;}
+
+  /* modal */
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,0.25);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    z-index:10;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:24px;
+    width:280px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .modal h3{margin:0;font-size:1.1rem;}
+  .modal input[type=text]{
+    padding:8px 10px;
+    border-radius:10px;
+    border:1px solid #ddd;
+    font-size:0.95rem;
+  }
+  .modal .row{display:flex;gap:8px;align-items:center;}
+  .emoji-pick{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    max-height:110px;
+    overflow-y:auto;
+  }
+  .emoji-pick span{
+    font-size:1.4rem;
+    cursor:pointer;
+    padding:2px 4px;
+    border-radius:6px;
+  }
+  .emoji-pick span.picked{background:var(--accent);}
+  .modal .btns{display:flex;gap:8px;justify-content:flex-end;}
+  .modal button{
+    border:none;
+    border-radius:10px;
+    padding:8px 14px;
+    cursor:pointer;
+    font-size:0.9rem;
+  }
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-cancel{background:#eee;color:var(--ink);}
+  input[type=file]{font-size:0.8rem;}
+</style>
+</head>
+<body>
+
+<h1 class="title">🌸 Уют 🌸</h1>
+
+<section>
+  <h2>🛒 Продукты</h2>
+  <div class="grid" id="productsGrid"></div>
+</section>
+
+<section>
+  <h2>💌 Вишлист</h2>
+  <div class="grid" id="wishGrid"></div>
+</section>
+
+<section>
+  <h2>🌿 Цветочки</h2>
+  <div class="plants" id="plantsGrid"></div>
+</section>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <h3 id="modalTitle">Добавить продукт</h3>
+    <input type="text" id="modalName" placeholder="Название">
+    <div class="row">
+      <label style="font-size:0.85rem;color:var(--muted)">Картинка:</label>
+      <input type="file" id="modalFile" accept="image/*">
+    </div>
+    <div style="font-size:0.85rem;color:var(--muted)">или эмодзи:</div>
+    <div class="emoji-pick" id="emojiPick"></div>
+    <div class="btns">
+      <button class="btn-cancel" id="modalCancel">Отмена</button>
+      <button class="btn-primary" id="modalSave">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "uyut-data-v1";
+
+const EMOJIS = ["🍎","🍌","🥕","🥦","🥛","🧀","🍞","🥚","🍗","🍫","🧻","🧴","🧼","🪥","☕","🍅","🥔","🧅","🍋","🍇","🧃","🍯","🥫","🌶️"];
+
+let data = loadData();
+
+function loadData(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {
+    products: [],
+    wishlist: [],
+    plants: [
+      {id:"succulent", label:"Суккулент", photo:null, status:"red"},
+      {id:"dracaena", label:"Драцена", photo:null, status:"red"}
+    ]
+  };
+}
+
+function saveData(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+const STATUS_CYCLE = {
+  green: {next:"yellow", label:"Есть"},
+  yellow:{next:"red", label:"Кончается"},
+  red:   {next:"green", label:"ALARM!!!"}
+};
+
+function statusLabel(s){ return STATUS_CYCLE[s].label; }
+
+const productsGrid = document.getElementById("productsGrid");
+const wishGrid = document.getElementById("wishGrid");
+const plantsGrid = document.getElementById("plantsGrid");
+
+function renderProducts(){
+  productsGrid.innerHTML = "";
+  data.products.forEach(p=>{
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <button class="remove" title="Удалить">✕</button>
+      ${p.image ? `<img src="${p.image}">` : `<div class="emoji">${p.emoji||"📦"}</div>`}
+      <div class="name">${escapeHtml(p.name)}</div>
+      <button class="status ${p.status}">${statusLabel(p.status)}</button>
+    `;
+    card.querySelector(".remove").onclick = ()=>{
+      data.products = data.products.filter(x=>x.id!==p.id);
+      saveData(); renderProducts();
+    };
+    card.querySelector(".status").onclick = ()=>{
+      p.status = STATUS_CYCLE[p.status].next;
+      saveData(); renderProducts();
+    };
+    productsGrid.appendChild(card);
+  });
+  const addCard = document.createElement("div");
+  addCard.className = "card add-card";
+  addCard.innerHTML = `<div class="plus">+</div><div class="name">Добавить</div>`;
+  addCard.onclick = ()=>openModal("product");
+  productsGrid.appendChild(addCard);
+}
+
+function renderWishlist(){
+  wishGrid.innerHTML = "";
+  data.wishlist.forEach(w=>{
+    const card = document.createElement("div");
+    card.className = "card wish-card";
+    card.innerHTML = `
+      <button class="remove" title="Удалить">✕</button>
+      <div class="name">${escapeHtml(w.name)}</div>
+    `;
+    card.querySelector(".remove").onclick = ()=>{
+      data.wishlist = data.wishlist.filter(x=>x.id!==w.id);
+      saveData(); renderWishlist();
+    };
+    wishGrid.appendChild(card);
+  });
+  const addCard = document.createElement("div");
+  addCard.className = "card wish-card add-card";
+  addCard.innerHTML = `<div class="plus">+</div><div class="name">Добавить</div>`;
+  addCard.onclick = ()=>openModal("wish");
+  wishGrid.appendChild(addCard);
+}
+
+function renderPlants(){
+  plantsGrid.innerHTML = "";
+  data.plants.forEach(pl=>{
+    const card = document.createElement("div");
+    card.className = "plant-card";
+    card.innerHTML = `
+      <div class="plant-name">${pl.id==="succulent"?"🌵":"🪴"} ${pl.label}</div>
+      <div class="plant-photo" title="Загрузить фото">
+        ${pl.photo ? `<img src="${pl.photo}" style="width:100%;height:100%;object-fit:cover;">` : "📷"}
+      </div>
+      <input type="file" accept="image/*" style="display:none;">
+      <button class="status ${pl.status}">${pl.status==="green" ? "Полит" : "Не полит"}</button>
+    `;
+    const fileInput = card.querySelector('input[type=file]');
+    card.querySelector(".plant-photo").onclick = ()=> fileInput.click();
+    fileInput.onchange = (e)=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        pl.photo = reader.result;
+        saveData(); renderPlants();
+      };
+      reader.readAsDataURL(file);
+    };
+    card.querySelector(".status").onclick = ()=>{
+      pl.status = pl.status === "green" ? "red" : "green";
+      saveData(); renderPlants();
+    };
+    plantsGrid.appendChild(card);
+  });
+}
+
+function escapeHtml(str){
+  const div = document.createElement("div");
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ---- modal ----
+const overlay = document.getElementById("overlay");
+const modalTitle = document.getElementById("modalTitle");
+const modalName = document.getElementById("modalName");
+const modalFile = document.getElementById("modalFile");
+const emojiPick = document.getElementById("emojiPick");
+const modalSave = document.getElementById("modalSave");
+const modalCancel = document.getElementById("modalCancel");
+
+let modalMode = "product";
+let pickedEmoji = null;
+let pickedImage = null;
+
+EMOJIS.forEach(em=>{
+  const span = document.createElement("span");
+  span.textContent = em;
+  span.onclick = ()=>{
+    pickedEmoji = em;
+    pickedImage = null;
+    modalFile.value = "";
+    [...emojiPick.children].forEach(c=>c.classList.remove("picked"));
+    span.classList.add("picked");
+  };
+  emojiPick.appendChild(span);
+});
+
+modalFile.onchange = (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    pickedImage = reader.result;
+    pickedEmoji = null;
+    [...emojiPick.children].forEach(c=>c.classList.remove("picked"));
+  };
+  reader.readAsDataURL(file);
+};
+
+function openModal(mode){
+  modalMode = mode;
+  modalName.value = "";
+  pickedEmoji = null;
+  pickedImage = null;
+  modalFile.value = "";
+  [...emojiPick.children].forEach(c=>c.classList.remove("picked"));
+  if(mode==="product"){
+    modalTitle.textContent = "Добавить продукт";
+    modalFile.parentElement.style.display = "flex";
+    emojiPick.style.display = "flex";
+  } else {
+    modalTitle.textContent = "Добавить в вишлист";
+    modalFile.parentElement.style.display = "none";
+    emojiPick.style.display = "none";
+  }
+  overlay.classList.add("open");
+  modalName.focus();
+}
+
+function closeModal(){
+  overlay.classList.remove("open");
+}
+
+modalCancel.onclick = closeModal;
+overlay.onclick = (e)=>{ if(e.target===overlay) closeModal(); };
+
+modalSave.onclick = ()=>{
+  const name = modalName.value.trim();
+  if(!name) return;
+  if(modalMode==="product"){
+    data.products.push({
+      id: "p"+Date.now()+Math.random().toString(36).slice(2,6),
+      name,
+      image: pickedImage,
+      emoji: pickedEmoji,
+      status: "green"
+    });
+    saveData(); renderProducts();
+  } else {
+    data.wishlist.push({
+      id: "w"+Date.now()+Math.random().toString(36).slice(2,6),
+      name
+    });
+    saveData(); renderWishlist();
+  }
+  closeModal();
+};
+
+renderProducts();
+renderWishlist();
+renderPlants();
+</script>
+</body>
+</html>
