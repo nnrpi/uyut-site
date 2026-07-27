@@ -1,10 +1,10 @@
 const DB = "https://uyut-site-default-rtdb.firebaseio.com/uyut";
 
-async function sendMsg(env, text) {
+async function sendMsg(env, chatId, text) {
   await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `chat_id=${env.TELEGRAM_CHAT_ID}&text=${encodeURIComponent(text)}`
+    body: `chat_id=${chatId}&text=${encodeURIComponent(text)}`
   });
 }
 
@@ -24,7 +24,7 @@ async function runCheck(env) {
   if ((day === 1 || day === 15) && lastFlip !== today) {
     plants = plants.map(p => p.id === "succulent" ? { ...p, status: "red" } : p);
     await fetch(`${DB}/plants.json`, { method: "PUT", body: JSON.stringify(plants) });
-    await sendMsg(env, "🌵 Суккулент пора полить! Статус сброшен на «Не полит».");
+    await sendMsg(env, env.TELEGRAM_CHAT_ID, "🌵 Суккулент пора полить! Статус сброшен на «Не полит».");
     lastFlip = today;
   }
 
@@ -32,7 +32,7 @@ async function runCheck(env) {
   for (const pl of plants) {
     const old = prevPlants[pl.id];
     if (old && old !== pl.status && pl.status === "green") {
-      await sendMsg(env, `💧 «${pl.label}» полит!`);
+      await sendMsg(env, env.TELEGRAM_CHAT_ID, `💧 «${pl.label}» полит!`);
     }
   }
   const newPlantStatuses = {};
@@ -43,8 +43,8 @@ async function runCheck(env) {
   for (const p of products) {
     const old = prevProducts[p.id];
     if (old && old !== p.status) {
-      if (p.status === "yellow") await sendMsg(env, `🟡 «${p.name}» кончается!`);
-      else if (p.status === "green") await sendMsg(env, `🟢 «${p.name}» снова есть!`);
+      if (p.status === "yellow") await sendMsg(env, env.TELEGRAM_CHAT_ID, `🟡 «${p.name}» кончается!`);
+      else if (p.status === "green") await sendMsg(env, env.TELEGRAM_CHAT_ID, `🟢 «${p.name}» снова есть!`);
     }
   }
   const newProductStatuses = {};
@@ -60,11 +60,49 @@ async function runCheck(env) {
   });
 }
 
+async function handleCommand(env, chatId, text) {
+  const [cmdRaw, ...rest] = text.trim().split(/\s+/);
+  const cmd = cmdRaw.split("@")[0].toLowerCase();
+  const arg = rest.join(" ").trim();
+
+  if (cmd === "/finish") {
+    if (!arg) return;
+    const res = await fetch(`${DB}/products.json`);
+    const products = (await res.json()) || [];
+    const idx = products.findIndex(p => p.name.trim().toLowerCase() === arg.toLowerCase());
+    if (idx === -1) {
+      await sendMsg(env, chatId, "Ой, нет такого продукта");
+      return;
+    }
+    await fetch(`${DB}/products/${idx}.json`, { method: "PATCH", body: JSON.stringify({ status: "red" }) });
+    await sendMsg(env, chatId, "Упс!");
+  } else if (cmd === "/add") {
+    if (!arg) return;
+    const res = await fetch(`${DB}/products.json`);
+    const products = (await res.json()) || [];
+    products.push({
+      id: "p" + Date.now() + Math.random().toString(36).slice(2, 6),
+      name: arg,
+      status: "green"
+    });
+    await fetch(`${DB}/products.json`, { method: "PUT", body: JSON.stringify(products) });
+    await sendMsg(env, chatId, `🛒 «${arg}» добавлен, статус: Есть.`);
+  }
+}
+
 export default {
   async scheduled(event, env, ctx) {
     await runCheck(env);
   },
   async fetch(request, env, ctx) {
+    if (request.method === "POST") {
+      const update = await request.json();
+      const msg = update.message;
+      if (msg && msg.text && msg.text.startsWith("/")) {
+        await handleCommand(env, msg.chat.id, msg.text);
+      }
+      return new Response("ok");
+    }
     await runCheck(env);
     return new Response("ok");
   }
