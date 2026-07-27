@@ -24,7 +24,7 @@ async function runCheck(env) {
   if ((day === 1 || day === 15) && lastFlip !== today) {
     plants = plants.map(p => p.id === "succulent" ? { ...p, status: "red" } : p);
     await fetch(`${DB}/plants.json`, { method: "PUT", body: JSON.stringify(plants) });
-    await sendMsg(env, env.TELEGRAM_CHAT_ID, "🌵 Суккулент пора полить! Статус сброшен на «Не полит».");
+    await sendMsg(env, env.TELEGRAM_CHAT_ID, "🌵 Суккулент пора полить!");
     lastFlip = today;
   }
 
@@ -32,7 +32,11 @@ async function runCheck(env) {
   for (const pl of plants) {
     const old = prevPlants[pl.id];
     if (old && old !== pl.status && pl.status === "green") {
-      await sendMsg(env, env.TELEGRAM_CHAT_ID, `💧 «${pl.label}» полит!`);
+      let watered = "полит";
+      if (pl.label == "Драцена") {
+        watered = "полита";
+      }
+      await sendMsg(env, env.TELEGRAM_CHAT_ID, `💧 ${pl.label} ${watered}!`);
     }
   }
   const newPlantStatuses = {};
@@ -43,8 +47,8 @@ async function runCheck(env) {
   for (const p of products) {
     const old = prevProducts[p.id];
     if (old && old !== p.status) {
-      if (p.status === "yellow") await sendMsg(env, env.TELEGRAM_CHAT_ID, `🟡 «${p.name}» кончается!`);
-      else if (p.status === "green") await sendMsg(env, env.TELEGRAM_CHAT_ID, `🟢 «${p.name}» снова есть!`);
+      if (p.status === "yellow") await sendMsg(env, env.TELEGRAM_CHAT_ID, `🟡 ${p.name} кончается!`);
+      else if (p.status === "green") await sendMsg(env, env.TELEGRAM_CHAT_ID, `🟢 ${p.name} снова есть!`);
     }
   }
   const newProductStatuses = {};
@@ -86,7 +90,7 @@ async function handleCommand(env, chatId, text) {
       status: "green"
     });
     await fetch(`${DB}/products.json`, { method: "PUT", body: JSON.stringify(products) });
-    await sendMsg(env, chatId, `🛒 «${arg}» добавлен, статус: Есть.`);
+    await sendMsg(env, chatId, `🛒 ${arg} добавлен, статус: Есть.`);
   }
 }
 
