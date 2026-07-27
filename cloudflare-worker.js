@@ -236,7 +236,8 @@ async function handleCallback(env, cq) {
     const keyboard = [
       [{ text: "🟢 Есть", callback_data: `s|${id}|green` }],
       [{ text: "🟡 Кончается", callback_data: `s|${id}|yellow` }],
-      [{ text: "🔴 ALARM!!!", callback_data: `s|${id}|red` }]
+      [{ text: "🔴 ALARM!!!", callback_data: `s|${id}|red` }],
+      [{ text: "🗑️ Убрать из списка", callback_data: `d|${id}` }]
     ];
     await editKeyboard(env, chatId, messageId, `${prod.emoji || "📦"} ${prod.name} — выбери статус:`, keyboard);
     await answerCallback(env, cq.id);
@@ -251,6 +252,19 @@ async function handleCallback(env, cq) {
     await fetch(`${DB}/products/${idx}.json`, { method: "PATCH", body: JSON.stringify({ status }) });
     await editKeyboard(env, chatId, messageId, `${products[idx].emoji || "📦"} ${products[idx].name} — статус: ${STATUS_LABELS[status]}`, null);
     await answerCallback(env, cq.id, "Обновлено");
+  } else if (type === "d") {
+    const id = parts[0];
+    const products = await getProducts();
+    const idx = products.findIndex(p => p.id === id);
+    if (idx === -1) {
+      await answerCallback(env, cq.id, "Продукт не найден");
+      return;
+    }
+    const removed = products[idx];
+    products.splice(idx, 1);
+    await fetch(`${DB}/products.json`, { method: "PUT", body: JSON.stringify(products) });
+    await editKeyboard(env, chatId, messageId, `${removed.emoji || "📦"} ${removed.name} убран из списка.`, null);
+    await answerCallback(env, cq.id, "Убрано");
   } else if (type === "f") {
     const id = parts[0];
     const products = await getProducts();
