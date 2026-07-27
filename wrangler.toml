@@ -1,0 +1,4 @@
+name = "uyut-notify"
+main = "cloudflare-worker.js"
+compatibility_date = "2026-07-27"
+account_id = "dfd147348532bd8a8cab8965b3a42a60"
