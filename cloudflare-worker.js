@@ -3,7 +3,7 @@ const STATUS_LABELS = { green: "Есть", yellow: "Кончается", red: "A
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "добавить продукт" }, { text: "закончился" }, { text: "всё" }],
-    [{ text: "Что купить" }]
+    [{ text: "что купить" }]
   ],
   resize_keyboard: true,
   is_persistent: true
