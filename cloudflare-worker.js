@@ -1,7 +1,10 @@
 const DB = "https://uyut-site-default-rtdb.firebaseio.com/uyut";
 const STATUS_LABELS = { green: "Есть", yellow: "Кончается", red: "ALARM!!!" };
 const MAIN_KEYBOARD = {
-  keyboard: [[{ text: "/add" }, { text: "/finish" }, { text: "/prod" }]],
+  keyboard: [
+    [{ text: "/add" }, { text: "/finish" }, { text: "/prod" }],
+    [{ text: "Что купить" }]
+  ],
   resize_keyboard: true,
   is_persistent: true
 };
@@ -144,6 +147,20 @@ async function finishByName(env, chatId, name) {
   await sendMsg(env, chatId, "Упс!");
 }
 
+async function showBuyList(env, chatId) {
+  const products = await getProducts();
+  const need = products.filter(p => p.status === "yellow" || p.status === "red");
+  if (!need.length) {
+    await sendMsg(env, chatId, "Всё есть, покупать ничего не надо! 🎉");
+    return;
+  }
+  const lines = need.map(p => {
+    const icon = p.status === "red" ? "🔴" : "🟡";
+    return `${icon} ${p.emoji || "📦"} ${p.name} — ${STATUS_LABELS[p.status]}`;
+  });
+  await sendMsg(env, chatId, `Что купить:\n${lines.join("\n")}`);
+}
+
 async function handleCommand(env, chatId, text) {
   const [cmdRaw, ...rest] = text.trim().split(/\s+/);
   const cmd = cmdRaw.split("@")[0].toLowerCase();
@@ -177,10 +194,17 @@ async function handleCommand(env, chatId, text) {
       return;
     }
     await sendKeyboard(env, chatId, "Выбери продукт:", productKeyboard(products, "p"));
+  } else if (cmd === "/buy") {
+    await clearState(chatId);
+    await showBuyList(env, chatId);
   }
 }
 
 async function handleText(env, chatId, text) {
+  if (text.trim().toLowerCase() === "что купить") {
+    await showBuyList(env, chatId);
+    return;
+  }
   const state = await getState(chatId);
   if (state === "add") {
     await clearState(chatId);
