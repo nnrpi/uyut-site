@@ -2,7 +2,7 @@ const DB = "https://uyut-site-default-rtdb.firebaseio.com/uyut";
 const STATUS_LABELS = { green: "Есть", yellow: "Кончается", red: "ALARM!!!" };
 const MAIN_KEYBOARD = {
   keyboard: [
-    [{ text: "/add" }, { text: "/finish" }, { text: "/prod" }],
+    [{ text: "добавить продукт" }, { text: "закончился" }, { text: "всё" }],
     [{ text: "Что купить" }]
   ],
   resize_keyboard: true,
@@ -161,50 +161,58 @@ async function showBuyList(env, chatId) {
   await sendMsg(env, chatId, `Что купить:\n${lines.join("\n")}`);
 }
 
+async function cmdFinish(env, chatId, arg) {
+  if (arg) {
+    await clearState(chatId);
+    await finishByName(env, chatId, arg);
+    return;
+  }
+  const products = await getProducts();
+  if (!products.length) {
+    await sendMsg(env, chatId, "Продуктов пока нет");
+    return;
+  }
+  await sendKeyboard(env, chatId, "Какой продукт закончился?", productKeyboard(products, "f"));
+}
+
+async function cmdAdd(env, chatId, arg) {
+  if (arg) {
+    await clearState(chatId);
+    await addProduct(env, chatId, arg);
+    return;
+  }
+  await setState(chatId, "add");
+  await sendMsg(env, chatId, "Напиши название продукта для добавления:");
+}
+
+async function cmdProd(env, chatId) {
+  await clearState(chatId);
+  const products = await getProducts();
+  if (!products.length) {
+    await sendMsg(env, chatId, "Продуктов пока нет");
+    return;
+  }
+  await sendKeyboard(env, chatId, "Выбери продукт:", productKeyboard(products, "p"));
+}
+
 async function handleCommand(env, chatId, text) {
   const [cmdRaw, ...rest] = text.trim().split(/\s+/);
   const cmd = cmdRaw.split("@")[0].toLowerCase();
   const arg = rest.join(" ").trim();
 
-  if (cmd === "/finish") {
-    if (arg) {
-      await clearState(chatId);
-      await finishByName(env, chatId, arg);
-      return;
-    }
-    const products = await getProducts();
-    if (!products.length) {
-      await sendMsg(env, chatId, "Продуктов пока нет");
-      return;
-    }
-    await sendKeyboard(env, chatId, "Какой продукт закончился?", productKeyboard(products, "f"));
-  } else if (cmd === "/add") {
-    if (arg) {
-      await clearState(chatId);
-      await addProduct(env, chatId, arg);
-      return;
-    }
-    await setState(chatId, "add");
-    await sendMsg(env, chatId, "Напиши название продукта для добавления:");
-  } else if (cmd === "/prod") {
-    await clearState(chatId);
-    const products = await getProducts();
-    if (!products.length) {
-      await sendMsg(env, chatId, "Продуктов пока нет");
-      return;
-    }
-    await sendKeyboard(env, chatId, "Выбери продукт:", productKeyboard(products, "p"));
-  } else if (cmd === "/buy") {
-    await clearState(chatId);
-    await showBuyList(env, chatId);
-  }
+  if (cmd === "/finish") await cmdFinish(env, chatId, arg);
+  else if (cmd === "/add") await cmdAdd(env, chatId, arg);
+  else if (cmd === "/prod") await cmdProd(env, chatId);
+  else if (cmd === "/buy") { await clearState(chatId); await showBuyList(env, chatId); }
 }
 
 async function handleText(env, chatId, text) {
-  if (text.trim().toLowerCase() === "что купить") {
-    await showBuyList(env, chatId);
-    return;
-  }
+  const t = text.trim().toLowerCase();
+  if (t === "что купить") { await showBuyList(env, chatId); return; }
+  if (t === "добавить продукт") { await cmdAdd(env, chatId, ""); return; }
+  if (t === "закончился") { await cmdFinish(env, chatId, ""); return; }
+  if (t === "всё") { await cmdProd(env, chatId); return; }
+
   const state = await getState(chatId);
   if (state === "add") {
     await clearState(chatId);
