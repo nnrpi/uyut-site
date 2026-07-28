@@ -3,7 +3,7 @@ const STATUS_LABELS = { green: "Есть", yellow: "Кончается", red: "A
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "добавить продукт" }, { text: "закончился" }, { text: "всё" }],
-    [{ text: "что купить" }]
+    [{ text: "что купить" }, { text: "купил" }]
   ],
   resize_keyboard: true,
   is_persistent: true
@@ -55,6 +55,28 @@ async function setState(chatId, mode) {
 
 async function clearState(chatId) {
   await fetch(`${DB}/_botState/${chatId}.json`, { method: "DELETE" });
+}
+
+async function getSelection(chatId) {
+  const res = await fetch(`${DB}/_buySelection/${chatId}.json`);
+  return (await res.json()) || [];
+}
+
+async function setSelection(chatId, ids) {
+  await fetch(`${DB}/_buySelection/${chatId}.json`, { method: "PUT", body: JSON.stringify(ids) });
+}
+
+async function clearSelection(chatId) {
+  await fetch(`${DB}/_buySelection/${chatId}.json`, { method: "DELETE" });
+}
+
+function boughtKeyboard(products, selected) {
+  const keyboard = products.map(p => [{
+    text: `${selected.includes(p.id) ? "✅" : "⬜"} ${p.emoji || "📦"} ${p.name}`,
+    callback_data: `b|${p.id}`
+  }]);
+  keyboard.push([{ text: "Готово", callback_data: "bdone" }]);
+  return keyboard;
 }
 
 function productKeyboard(products, prefix) {
@@ -195,6 +217,17 @@ async function cmdProd(env, chatId) {
   await sendKeyboard(env, chatId, "Выбери продукт:", productKeyboard(products, "p"));
 }
 
+async function cmdBought(env, chatId) {
+  await clearState(chatId);
+  const products = await getProducts();
+  if (!products.length) {
+    await sendMsg(env, chatId, "Продуктов пока нет");
+    return;
+  }
+  await clearSelection(chatId);
+  await sendKeyboard(env, chatId, "Что купил(а)? Отметь и жми «Готово»:", boughtKeyboard(products, []));
+}
+
 async function handleCommand(env, chatId, text) {
   const [cmdRaw, ...rest] = text.trim().split(/\s+/);
   const cmd = cmdRaw.split("@")[0].toLowerCase();
@@ -204,6 +237,7 @@ async function handleCommand(env, chatId, text) {
   else if (cmd === "/add") await cmdAdd(env, chatId, arg);
   else if (cmd === "/prod") await cmdProd(env, chatId);
   else if (cmd === "/buy") { await clearState(chatId); await showBuyList(env, chatId); }
+  else if (cmd === "/bought") await cmdBought(env, chatId);
 }
 
 async function handleText(env, chatId, text) {
@@ -212,6 +246,7 @@ async function handleText(env, chatId, text) {
   if (t === "добавить продукт") { await cmdAdd(env, chatId, ""); return; }
   if (t === "закончился") { await cmdFinish(env, chatId, ""); return; }
   if (t === "всё") { await cmdProd(env, chatId); return; }
+  if (t === "купил") { await cmdBought(env, chatId); return; }
 
   const state = await getState(chatId);
   if (state === "add") {
@@ -265,6 +300,34 @@ async function handleCallback(env, cq) {
     await fetch(`${DB}/products.json`, { method: "PUT", body: JSON.stringify(products) });
     await editKeyboard(env, chatId, messageId, `${removed.emoji || "📦"} ${removed.name} убран из списка.`, null);
     await answerCallback(env, cq.id, "Убрано");
+  } else if (type === "b") {
+    const id = parts[0];
+    const products = await getProducts();
+    let selected = await getSelection(chatId);
+    if (selected.includes(id)) selected = selected.filter(x => x !== id);
+    else selected = [...selected, id];
+    await setSelection(chatId, selected);
+    await editKeyboard(env, chatId, messageId, "Что купил(а)? Отметь и жми «Готово»:", boughtKeyboard(products, selected));
+    await answerCallback(env, cq.id);
+  } else if (type === "bdone") {
+    const selected = await getSelection(chatId);
+    if (!selected.length) {
+      await answerCallback(env, cq.id, "Ничего не выбрано");
+      return;
+    }
+    const products = await getProducts();
+    const boughtNames = [];
+    const updated = products.map(p => {
+      if (selected.includes(p.id)) {
+        boughtNames.push(p.name);
+        return { ...p, status: "green" };
+      }
+      return p;
+    });
+    await fetch(`${DB}/products.json`, { method: "PUT", body: JSON.stringify(updated) });
+    await clearSelection(chatId);
+    await editKeyboard(env, chatId, messageId, `Куплено: ${boughtNames.join(", ")}. Статус: Есть.`, null);
+    await answerCallback(env, cq.id, "Готово!");
   } else if (type === "f") {
     const id = parts[0];
     const products = await getProducts();
