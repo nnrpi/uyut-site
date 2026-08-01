@@ -3,7 +3,8 @@ const STATUS_LABELS = { green: "Есть", yellow: "Кончается", red: "A
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "добавить продукт" }, { text: "закончился" }, { text: "всё" }],
-    [{ text: "что купить" }, { text: "купил" }]
+    [{ text: "что купить" }, { text: "купил" }],
+    [{ text: "полил 🪴" }]
   ],
   resize_keyboard: true,
   is_persistent: true
@@ -217,6 +218,18 @@ async function cmdProd(env, chatId) {
   await sendKeyboard(env, chatId, "Выбери продукт:", productKeyboard(products, "p"));
 }
 
+async function cmdWatered(env, chatId) {
+  const res = await fetch(`${DB}/plants.json`);
+  const plants = (await res.json()) || [];
+  const idx = plants.findIndex(p => p.id === "succulent");
+  if (idx === -1) {
+    await sendMsg(env, chatId, "Суккулент не найден");
+    return;
+  }
+  await fetch(`${DB}/plants/${idx}.json`, { method: "PATCH", body: JSON.stringify({ status: "green" }) });
+  await sendMsg(env, chatId, "🌵 Суккулент полит!");
+}
+
 async function cmdBought(env, chatId) {
   await clearState(chatId);
   const products = await getProducts();
@@ -238,6 +251,7 @@ async function handleCommand(env, chatId, text) {
   else if (cmd === "/prod") await cmdProd(env, chatId);
   else if (cmd === "/buy") { await clearState(chatId); await showBuyList(env, chatId); }
   else if (cmd === "/bought") await cmdBought(env, chatId);
+  else if (cmd === "/watered") await cmdWatered(env, chatId);
 }
 
 async function handleText(env, chatId, text) {
@@ -247,6 +261,7 @@ async function handleText(env, chatId, text) {
   if (t === "закончился") { await cmdFinish(env, chatId, ""); return; }
   if (t === "всё") { await cmdProd(env, chatId); return; }
   if (t === "купил") { await cmdBought(env, chatId); return; }
+  if (t === "полил 🪴") { await cmdWatered(env, chatId); return; }
 
   const state = await getState(chatId);
   if (state === "add") {
