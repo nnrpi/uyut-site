@@ -248,6 +248,7 @@
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
 <script>
 const EMOJIS = [
@@ -288,18 +289,25 @@ const DEFAULT_DATA = {
 let data = null;
 const syncStatus = document.getElementById("syncStatus");
 
-dataRef.on("value", (snap)=>{
-  const remote = snap.val() || {};
-  data = {
-    products: remote.products || [],
-    wishlist: remote.wishlist || [],
-    plants: remote.plants || DEFAULT_DATA.plants
-  };
-  syncStatus.style.display = "none";
-  renderProducts();
-  renderWishlist();
-  renderPlants();
-}, (err)=>{
+firebase.auth().onAuthStateChanged((user)=>{
+  if (!user) return;
+  dataRef.on("value", (snap)=>{
+    const remote = snap.val() || {};
+    data = {
+      products: remote.products || [],
+      wishlist: remote.wishlist || [],
+      plants: remote.plants || DEFAULT_DATA.plants
+    };
+    syncStatus.style.display = "none";
+    renderProducts();
+    renderWishlist();
+    renderPlants();
+  }, (err)=>{
+    syncStatus.textContent = "нет связи с базой :(";
+  });
+});
+
+firebase.auth().signInAnonymously().catch(()=>{
   syncStatus.textContent = "нет связи с базой :(";
 });
 

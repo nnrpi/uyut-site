@@ -1,5 +1,22 @@
 const DB = "https://uyut-site-default-rtdb.firebaseio.com/uyut";
+const FIREBASE_API_KEY = "AIzaSyB4vp9pY-YNcjVY_82qWcLJzdKSjfLR32k";
 const STATUS_LABELS = { green: "Есть", yellow: "Кончается", red: "ALARM!!!" };
+
+let dbToken = null;
+
+async function ensureToken() {
+  const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_API_KEY}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ returnSecureToken: true })
+  });
+  const data = await res.json();
+  dbToken = data.idToken;
+}
+
+function db(path) {
+  return `${DB}${path}?auth=${dbToken}`;
+}
 const MAIN_KEYBOARD = {
   keyboard: [
     [{ text: "добавить продукт" }, { text: "закончился" }, { text: "всё" }],
@@ -41,34 +58,34 @@ async function answerCallback(env, callbackId, text) {
 }
 
 async function getProducts() {
-  const res = await fetch(`${DB}/products.json`);
+  const res = await fetch(db("/products.json"));
   return (await res.json()) || [];
 }
 
 async function getState(chatId) {
-  const res = await fetch(`${DB}/_botState/${chatId}.json`);
+  const res = await fetch(db(`/_botState/${chatId}.json`));
   return await res.json();
 }
 
 async function setState(chatId, mode) {
-  await fetch(`${DB}/_botState/${chatId}.json`, { method: "PUT", body: JSON.stringify(mode) });
+  await fetch(db(`/_botState/${chatId}.json`), { method: "PUT", body: JSON.stringify(mode) });
 }
 
 async function clearState(chatId) {
-  await fetch(`${DB}/_botState/${chatId}.json`, { method: "DELETE" });
+  await fetch(db(`/_botState/${chatId}.json`), { method: "DELETE" });
 }
 
 async function getSelection(chatId) {
-  const res = await fetch(`${DB}/_buySelection/${chatId}.json`);
+  const res = await fetch(db(`/_buySelection/${chatId}.json`));
   return (await res.json()) || [];
 }
 
 async function setSelection(chatId, ids) {
-  await fetch(`${DB}/_buySelection/${chatId}.json`, { method: "PUT", body: JSON.stringify(ids) });
+  await fetch(db(`/_buySelection/${chatId}.json`), { method: "PUT", body: JSON.stringify(ids) });
 }
 
 async function clearSelection(chatId) {
-  await fetch(`${DB}/_buySelection/${chatId}.json`, { method: "DELETE" });
+  await fetch(db(`/_buySelection/${chatId}.json`), { method: "DELETE" });
 }
 
 function boughtKeyboard(products, selected) {
@@ -93,7 +110,7 @@ function productKeyboard(products, prefix) {
 }
 
 async function runCheck(env) {
-  const res = await fetch(`${DB}.json`);
+  const res = await fetch(db(".json"));
   const dataRoot = (await res.json()) || {};
   const meta = dataRoot._notifyMeta || {};
 
@@ -107,7 +124,7 @@ async function runCheck(env) {
 
   if ((day === 1 || day === 15) && lastFlip !== today) {
     plants = plants.map(p => p.id === "succulent" ? { ...p, status: "red" } : p);
-    await fetch(`${DB}/plants.json`, { method: "PUT", body: JSON.stringify(plants) });
+    await fetch(db("/plants.json"), { method: "PUT", body: JSON.stringify(plants) });
     await sendMsg(env, env.TELEGRAM_CHAT_ID, "🌵 Суккулент пора полить!");
     lastFlip = today;
   }
@@ -138,7 +155,7 @@ async function runCheck(env) {
   const newProductStatuses = {};
   products.forEach(p => { newProductStatuses[p.id] = p.status; });
 
-  await fetch(`${DB}/_notifyMeta.json`, {
+  await fetch(db("/_notifyMeta.json"), {
     method: "PUT",
     body: JSON.stringify({
       lastFlipDate: lastFlip,
@@ -155,7 +172,7 @@ async function addProduct(env, chatId, name) {
     name,
     status: "green"
   });
-  await fetch(`${DB}/products.json`, { method: "PUT", body: JSON.stringify(products) });
+  await fetch(db("/products.json"), { method: "PUT", body: JSON.stringify(products) });
   await sendMsg(env, chatId, `🛒 ${name} добавлен, статус: Есть.`);
 }
 
@@ -166,7 +183,7 @@ async function finishByName(env, chatId, name) {
     await sendMsg(env, chatId, "Ой, нет такого продукта");
     return;
   }
-  await fetch(`${DB}/products/${idx}.json`, { method: "PATCH", body: JSON.stringify({ status: "red" }) });
+  await fetch(db(`/products/${idx}.json`), { method: "PATCH", body: JSON.stringify({ status: "red" }) });
   await sendMsg(env, chatId, "Упс!");
 }
 
@@ -219,14 +236,14 @@ async function cmdProd(env, chatId) {
 }
 
 async function cmdWatered(env, chatId) {
-  const res = await fetch(`${DB}/plants.json`);
+  const res = await fetch(db("/plants.json"));
   const plants = (await res.json()) || [];
   const idx = plants.findIndex(p => p.id === "succulent");
   if (idx === -1) {
     await sendMsg(env, chatId, "Суккулент не найден");
     return;
   }
-  await fetch(`${DB}/plants/${idx}.json`, { method: "PATCH", body: JSON.stringify({ status: "green" }) });
+  await fetch(db(`/plants/${idx}.json`), { method: "PATCH", body: JSON.stringify({ status: "green" }) });
   await sendMsg(env, chatId, "🌵 Суккулент полит!");
 }
 
@@ -299,7 +316,7 @@ async function handleCallback(env, cq) {
       await answerCallback(env, cq.id, "Продукт не найден");
       return;
     }
-    await fetch(`${DB}/products/${idx}.json`, { method: "PATCH", body: JSON.stringify({ status }) });
+    await fetch(db(`/products/${idx}.json`), { method: "PATCH", body: JSON.stringify({ status }) });
     await editKeyboard(env, chatId, messageId, `${products[idx].emoji || "📦"} ${products[idx].name} — статус: ${STATUS_LABELS[status]}`, null);
     await answerCallback(env, cq.id, "Обновлено");
   } else if (type === "d") {
@@ -312,7 +329,7 @@ async function handleCallback(env, cq) {
     }
     const removed = products[idx];
     products.splice(idx, 1);
-    await fetch(`${DB}/products.json`, { method: "PUT", body: JSON.stringify(products) });
+    await fetch(db("/products.json"), { method: "PUT", body: JSON.stringify(products) });
     await editKeyboard(env, chatId, messageId, `${removed.emoji || "📦"} ${removed.name} убран из списка.`, null);
     await answerCallback(env, cq.id, "Убрано");
   } else if (type === "b") {
@@ -339,7 +356,7 @@ async function handleCallback(env, cq) {
       }
       return p;
     });
-    await fetch(`${DB}/products.json`, { method: "PUT", body: JSON.stringify(updated) });
+    await fetch(db("/products.json"), { method: "PUT", body: JSON.stringify(updated) });
     await clearSelection(chatId);
     await editKeyboard(env, chatId, messageId, `Куплено: ${boughtNames.join(", ")}. Статус: Есть.`, null);
     await answerCallback(env, cq.id, "Готово!");
@@ -351,7 +368,7 @@ async function handleCallback(env, cq) {
       await answerCallback(env, cq.id, "Продукт не найден");
       return;
     }
-    await fetch(`${DB}/products/${idx}.json`, { method: "PATCH", body: JSON.stringify({ status: "red" }) });
+    await fetch(db(`/products/${idx}.json`), { method: "PATCH", body: JSON.stringify({ status: "red" }) });
     await editKeyboard(env, chatId, messageId, `${products[idx].emoji || "📦"} ${products[idx].name} — статус: ALARM!!!`, null);
     await answerCallback(env, cq.id, "Упс!");
   }
@@ -359,9 +376,11 @@ async function handleCallback(env, cq) {
 
 export default {
   async scheduled(event, env, ctx) {
+    await ensureToken();
     await runCheck(env);
   },
   async fetch(request, env, ctx) {
+    await ensureToken();
     if (request.method === "POST") {
       const update = await request.json();
       if (update.callback_query) {
