@@ -118,6 +118,16 @@ async function runCheck(env) {
   const moscow = new Date(now.getTime() + 3 * 60 * 60 * 1000); // UTC+3
   const today = moscow.toISOString().slice(0, 10);
   const day = moscow.getUTCDate();
+  const hour = moscow.getUTCHours();
+
+  let lastReminder = meta.lastReminderDate || "";
+  if (hour === 10 && lastReminder !== today) {
+    const daysSince = lastReminder ? Math.round((new Date(today) - new Date(lastReminder)) / 86400000) : 999;
+    if (daysSince >= 2) {
+      await sendMsg(env, env.TELEGRAM_CHAT_ID, "Отправь коллегу на работу 🤖");
+      lastReminder = today;
+    }
+  }
 
   let plants = dataRoot.plants || [];
   let lastFlip = meta.lastFlipDate || "";
@@ -159,21 +169,33 @@ async function runCheck(env) {
     method: "PUT",
     body: JSON.stringify({
       lastFlipDate: lastFlip,
+      lastReminderDate: lastReminder,
       plantStatuses: newPlantStatuses,
       productStatuses: newProductStatuses
     })
   });
 }
 
-async function addProduct(env, chatId, name) {
+function extractEmoji(name) {
+  const match = name.match(/\p{Extended_Pictographic}\uFE0F?/u);
+  if (!match) return { name: name.trim(), emoji: null };
+  const emoji = match[0];
+  const cleanName = (name.slice(0, match.index) + name.slice(match.index + emoji.length)).replace(/\s+/g, " ").trim();
+  return { name: cleanName || name.trim(), emoji };
+}
+
+async function addProduct(env, chatId, rawName) {
+  const { name, emoji } = extractEmoji(rawName);
   const products = await getProducts();
-  products.push({
+  const product = {
     id: "p" + Date.now() + Math.random().toString(36).slice(2, 6),
     name,
-    status: "green"
-  });
+    status: "red"
+  };
+  if (emoji) product.emoji = emoji;
+  products.push(product);
   await fetch(db("/products.json"), { method: "PUT", body: JSON.stringify(products) });
-  await sendMsg(env, chatId, `🛒 ${name} добавлен, статус: Есть.`);
+  await sendMsg(env, chatId, `🛒 ${emoji || "📦"} ${name} добавлен, статус: ALARM!!!.`);
 }
 
 async function finishByName(env, chatId, name) {
